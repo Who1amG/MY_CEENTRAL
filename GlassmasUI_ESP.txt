@@ -1,0 +1,293 @@
+-- 🦈 Glassmas UI • FINAL FIXED + REAL ESP (Xeno)
+-- Stable base + simple ESP (Names + Boxes) inside Visual tab
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local SoundService = game:GetService("SoundService")
+
+local LP = Players.LocalPlayer
+local PlayerGui = LP:WaitForChild("PlayerGui")
+local Camera = workspace.CurrentCamera
+
+local function getParent()
+    local ok, hui = pcall(function()
+        if gethui then return gethui() end
+    end)
+    if ok and hui then return hui end
+    return PlayerGui
+end
+
+--================ GUI ROOT =================
+local UI = Instance.new("ScreenGui")
+UI.Name = "GlassmasUI"
+UI.ResetOnSpawn = false
+UI.Parent = getParent()
+
+--================ SOUNDS =================
+local S_Tab = Instance.new("Sound", UI)
+S_Tab.SoundId = "rbxassetid://6026984224"
+local S_Opt = Instance.new("Sound", UI)
+S_Opt.SoundId = "rbxassetid://541909867"
+
+local function playTab() pcall(function() SoundService:PlayLocalSound(S_Tab) end) end
+local function playOpt() pcall(function() SoundService:PlayLocalSound(S_Opt) end) end
+
+--================ THEME =================
+local Theme = {
+    Glass = Color3.fromRGB(255,110,110),
+    Header = Color3.fromRGB(60,15,20),
+    Accent = Color3.fromRGB(255,90,90),
+    Text = Color3.fromRGB(245,248,255)
+}
+
+--================ WINDOW =================
+local Window = Instance.new("Frame", UI)
+Window.AnchorPoint = Vector2.new(0.5,0.5)
+Window.Position = UDim2.new(0.5,0,0.5,0)
+Window.Size = UDim2.new(0,600,0,380)
+Window.BackgroundColor3 = Theme.Glass
+Window.BackgroundTransparency = 0.82
+Window.BorderSizePixel = 0
+Window.Active = false
+
+Instance.new("UICorner", Window).CornerRadius = UDim.new(0,22)
+
+local Stroke = Instance.new("UIStroke", Window)
+Stroke.Color = Theme.Accent
+Stroke.Transparency = 0.45
+
+--================ HEADER =================
+local Header = Instance.new("Frame", Window)
+Header.Size = UDim2.new(1,0,0,56)
+Header.BackgroundColor3 = Theme.Header
+Header.BackgroundTransparency = 0.25
+Header.BorderSizePixel = 0
+Header.Active = true
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0,22)
+
+local Title = Instance.new("TextLabel", Header)
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0,70,0,0)
+Title.Size = UDim2.new(1,-140,1,0)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.TextColor3 = Theme.Text
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Text = "🦈 Glassmas UI"
+
+local function dot(color,x)
+    local b = Instance.new("TextButton", Header)
+    b.Text = ""
+    b.AutoButtonColor = false
+    b.Size = UDim2.new(0,14,0,14)
+    b.Position = UDim2.new(0,x,0.5,-7)
+    b.BackgroundColor3 = color
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(1,0)
+    return b
+end
+
+local BtnClose = dot(Color3.fromRGB(255,95,90),16)
+local BtnMin   = dot(Color3.fromRGB(255,200,80),40)
+
+--================ TABS =================
+local Tabs = Instance.new("Frame", Window)
+Tabs.BackgroundTransparency = 1
+Tabs.Position = UDim2.new(0,12,0,62)
+Tabs.Size = UDim2.new(1,-24,0,44)
+Tabs.Active = false
+
+local function tab(txt,x)
+    local b = Instance.new("TextButton", Tabs)
+    b.Text = txt
+    b.AutoButtonColor = false
+    b.Font = Enum.Font.GothamSemibold
+    b.TextSize = 14
+    b.TextColor3 = Theme.Text
+    b.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    b.BackgroundTransparency = 0.88
+    b.BorderSizePixel = 0
+    b.Position = UDim2.new(0,x,0,0)
+    b.Size = UDim2.new(0,180,0,40)
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,14)
+    return b
+end
+
+local TAuto = tab("🏠 Auto Farm",0)
+local TVis  = tab("👁 Visual",190)
+local TSet  = tab("⚙️ Settings",380)
+
+--================ CONTENT =================
+local Content = Instance.new("Frame", Window)
+Content.BackgroundTransparency = 1
+Content.Position = UDim2.new(0,12,0,112)
+Content.Size = UDim2.new(1,-24,1,-124)
+Content.ClipsDescendants = true
+Content.Active = false
+
+local function page()
+    local p = Instance.new("Frame", Content)
+    p.Size = UDim2.new(1,0,1,0)
+    p.BackgroundTransparency = 1
+    p.Visible = false
+    p.Active = false
+    return p
+end
+
+local PAuto = page()
+local PVis  = page()
+local PSet  = page()
+PAuto.Visible = true
+local Current = PAuto
+local switching = false
+
+local function switch(to)
+    if switching or to == Current then return end
+    switching = true
+    playTab()
+    Current.Visible = false
+    to.Visible = true
+    Current = to
+    task.delay(0.15,function() switching = false end)
+end
+
+TAuto.MouseButton1Click:Connect(function() switch(PAuto) end)
+TVis.MouseButton1Click:Connect(function() switch(PVis) end)
+TSet.MouseButton1Click:Connect(function() switch(PSet) end)
+
+--================ ESP SYSTEM =================
+local ESP_ENABLED = false
+local ESP_OBJS = {}
+
+local function clearESP()
+    for _,v in pairs(ESP_OBJS) do
+        if v then v:Destroy() end
+    end
+    table.clear(ESP_OBJS)
+end
+
+local function createESP(plr)
+    if plr == LP then return end
+    local bill = Instance.new("BillboardGui")
+    bill.Name = "ESP"
+    bill.AlwaysOnTop = true
+    bill.Size = UDim2.new(0,200,0,50)
+    bill.StudsOffset = Vector3.new(0,2.5,0)
+
+    local txt = Instance.new("TextLabel", bill)
+    txt.Size = UDim2.new(1,0,1,0)
+    txt.BackgroundTransparency = 1
+    txt.Font = Enum.Font.GothamBold
+    txt.TextSize = 14
+    txt.TextColor3 = Color3.fromRGB(255,80,80)
+    txt.TextStrokeTransparency = 0
+    txt.Text = plr.Name
+
+    ESP_OBJS[plr] = bill
+
+    if plr.Character and plr.Character:FindFirstChild("Head") then
+        bill.Parent = plr.Character.Head
+    end
+end
+
+local function refreshESP()
+    clearESP()
+    if not ESP_ENABLED then return end
+    for _,plr in ipairs(Players:GetPlayers()) do
+        createESP(plr)
+    end
+end
+
+Players.PlayerAdded:Connect(function(plr)
+    if ESP_ENABLED then
+        task.wait(1)
+        createESP(plr)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    if ESP_OBJS[plr] then
+        ESP_OBJS[plr]:Destroy()
+        ESP_OBJS[plr] = nil
+    end
+end)
+
+--================ VISUAL UI =================
+local function makeButton(parent,txt,y,callback)
+    local b = Instance.new("TextButton", parent)
+    b.Text = txt
+    b.AutoButtonColor = false
+    b.Size = UDim2.new(0,320,0,44)
+    b.Position = UDim2.new(0.5,-160,0,y)
+    b.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    b.BackgroundTransparency = 0.86
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,14)
+
+    b.MouseButton1Click:Connect(function()
+        playOpt()
+        callback(b)
+    end)
+    return b
+end
+
+local ESPBtn = makeButton(PVis,"👁 ESP: OFF",30,function(btn)
+    ESP_ENABLED = not ESP_ENABLED
+    btn.Text = ESP_ENABLED and "👁 ESP: ON" or "👁 ESP: OFF"
+    refreshESP()
+end)
+
+--================ AUTO FARM DEMO =================
+makeButton(PAuto,"🧪 AutoFarm Test",30,function() end)
+
+--================ MIN / CLOSE =================
+local minimized = false
+local original = Window.Size
+
+BtnMin.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    playOpt()
+    if minimized then
+        Window.Size = UDim2.new(0,600,0,56)
+        Tabs.Visible = false
+        Content.Visible = false
+    else
+        Window.Size = original
+        Tabs.Visible = true
+        Content.Visible = true
+    end
+end)
+
+BtnClose.MouseButton1Click:Connect(function()
+    playOpt()
+    clearESP()
+    UI:Destroy()
+end)
+
+--================ DRAG =================
+local dragging, startPos, dragStart
+
+Header.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = i.Position
+        startPos = Window.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(i)
+    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = i.Position - dragStart
+        Window.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+print("[GlassmasUI] Loaded with REAL ESP • Xeno Ready")
